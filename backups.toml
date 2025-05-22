@@ -1,1 +1,30 @@
-## Add resources to get started
+[[deployment]]
+name = "backup-databases"
+tags = ["backup"]
+[deployment.config]
+server = "localhost"
+image.type = "Image"
+image.params.image = "ghcr.io/realorangeone/db-auto-backup:latest"
+image_registry_account = "b-"
+network = "none"
+volumes = """
+/var/run/docker.sock:/var/run/docker.sock:ro
+/etc/komodo/backups:/var/backups
+"""
+environment = """
+  # VARIABLE = value
+SCHEDULE=
+INCLUDE_LOGS=true
+"""
+
+##
+
+[[resource_sync]]
+name = "backups"
+tags = ["backup"]
+[resource_sync.config]
+repo = "b-/komodo-backups"
+git_account = "b-"
+resource_path = ["backups.toml"]
+managed = true
+match_tags = ["backup"]
