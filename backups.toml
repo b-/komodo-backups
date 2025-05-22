@@ -19,6 +19,18 @@ INCLUDE_LOGS=true
 
 ##
 
+[[action]]
+name = "backup-all-servers"
+tags = ["backup"]
+[action.config]
+file_contents = """
+// Run actions using the pre initialized 'komodo' client.
+const version: Types.GetVersionResponse = await komodo.read('GetVersion', {});
+console.log('🦎 Komodo version:', version.version, '🦎\n');
+"""
+
+##
+
 [[resource_sync]]
 name = "backups"
 tags = ["backup"]
