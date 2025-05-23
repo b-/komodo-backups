@@ -39,14 +39,7 @@ tags = ["backup"]
 [action.config]
 file_contents = """
 //import { komodo } from "npm:komodo_client";
-/*// Run actions using the pre initialized 'komodo' client.
-const version: Types.GetVersionResponse = await komodo.read('GetVersion', {});
-console.log('🦎 Komodo version:', version.version, '🦎\n');
-const BRANCH = "1.17.0";
-const VERSION = "1.17.0";
-const TAG = "dev-7";
 
-*/
 const deployment_name = "backup-databases";
 const tags_match = [];
 const servers = await komodo.read("ListServers", {
@@ -110,10 +103,15 @@ for (const server of servers) {
   await execute_and_wait(deployment);
   var deploymentLogResponse = await komodo.read("GetDeploymentLog", {
     deployment: deployment.name,
-    tail: 100,
+    tail: 1000,
     timestamps: true,
   });
   console.log(deploymentLogResponse.stdout, deploymentLogResponse.stderr);
+}
+
+console.log(`Done! Destroying the deployment.`)
+async function destroy_deployment(deployment: Types.Deployment) {
+  const res = await komodo.execute("DestroyDeployment", {deployment: deployment.name});
 }
 """
 
