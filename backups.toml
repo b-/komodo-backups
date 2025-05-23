@@ -2,7 +2,7 @@
 name = "backup-databases"
 tags = ["backup"]
 [deployment.config]
-server = "localhost"
+server = "mediaboxlite"
 image.type = "Image"
 image.params.image = "ghcr.io/realorangeone/db-auto-backup:latest"
 image_registry_account = "b-"
@@ -24,6 +24,7 @@ name = "backup-all-servers"
 tags = ["backup"]
 [action.config]
 file_contents = """
+//import { komodo } from "npm:komodo_client";
 /*// Run actions using the pre initialized 'komodo' client.
 const version: Types.GetVersionResponse = await komodo.read('GetVersion', {});
 console.log('🦎 Komodo version:', version.version, '🦎\n');
@@ -32,7 +33,7 @@ const VERSION = "1.17.0";
 const TAG = "dev-7";
 
 */
-const deployment_name = "backup-once";
+const deployment_name = "backup-databases";
 const tags_match = [];
 const servers = await komodo.read("ListServers", {
   query: { tags: tags_match },
@@ -43,15 +44,15 @@ var deployment = await komodo.read("GetDeployment", {
 });
 
 // check if the deployment is running
-async function is_running(deployment_name: string) {
+async function is_running(deployment: Types.Deployment) {
   const res = await komodo.read("GetDeploymentContainer", {
-    deployment: deployment_name,
+    deployment: deployment.name,
   });
   return res.state === Types.DeploymentState.Running;
 }
 
 // set the deployment server for deployment to server
-async function set_deployment_server(deployment, server) {
+async function set_deployment_server(deployment: Types.Deployment, server: Types.ServerListItem) {
   const res = await komodo.write("UpdateDeployment", {
     id: deployment.name,
     config: {
@@ -61,10 +62,38 @@ async function set_deployment_server(deployment, server) {
   return res;
 }
 
+function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function execute_and_wait(deployment: Types.Deployment) {
+  console.log(`Running deployment: ${deployment.name}`);
+  const res = await komodo.execute_and_poll("Deploy", { deployment: deployment.name });
+
+  const checkIntervalMs = 10 * 1000; // 10 seconds
+  let isRunning = true;
+
+  while (isRunning) {
+    await sleep(checkIntervalMs);
+
+    // Refresh deployment state
+    const containerState = await komodo.read("GetDeploymentContainer", {
+      deployment: deployment.name,
+    });
+
+    isRunning = containerState.state === Types.DeploymentState.Running;
+
+    console.log(`Deployment running: ${isRunning}`);
+  }
+
+  console.log(`Deployment ${deployment.name} completed.`);
+}
+
+
 for (const server of servers) {
-  console.log(`Deploying ${deployment_name} to: ${server}`);
+  console.log(`Deploying ${deployment_name} to: ${server.name}`);
   await set_deployment_server(deployment, server);
-  await komodo.execute_and_poll("Deploy", { deployment: deployment.name });
+  await execute_and_wait(deployment);
   var deploymentLogResponse = await komodo.read("GetDeploymentLog", {
     deployment: deployment.name,
     tail: 100,
@@ -72,14 +101,6 @@ for (const server of servers) {
   });
   console.log(deploymentLogResponse.stdout, deploymentLogResponse.stderr);
 }
-/*
-await komodo.write("CommitSync", { sync: "dev" });
-console.log("Committed changes to 'dev' Sync");
-
-await komodo.execute("RunProcedure", { procedure: "build-dev" });
-console.log("Launched 'build-dev' Procedure");
-*/
-
 """
 
 ##
