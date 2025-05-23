@@ -12,7 +12,7 @@ volumes = """
 /etc/komodo/backups:/var/backups
 """
 environment = """
-  # VARIABLE = value
+# SCHEDULE is set to blank, to instruct db-auto-backup to only run once and exit.
 SCHEDULE=
 INCLUDE_LOGS=true
 """
