@@ -50,6 +50,13 @@ var deployment = await komodo.read("GetDeployment", {
   deployment: deployment_name,
 });
 
+
+function log(msg: string) {
+  const now = new Date()
+  console.log(`  ${(now.toISOString())}: ${msg}`)
+}
+
+
 // check if the deployment is running
 async function is_running(deployment: Types.Deployment) {
   const res = await komodo.read("GetDeploymentContainer", {
@@ -74,7 +81,7 @@ function sleep(ms: number) {
 }
 
 async function execute_and_wait(deployment: Types.Deployment) {
-  console.log(`Running deployment: ${deployment.name}`);
+  log(`Running deployment: ${deployment.name}`);
   const res = await komodo.execute_and_poll("Deploy", { deployment: deployment.name });
 
   const checkIntervalMs = 10 * 1000; // 10 seconds
@@ -90,15 +97,19 @@ async function execute_and_wait(deployment: Types.Deployment) {
 
     isRunning = containerState.state === Types.DeploymentState.Running;
 
-    console.log(`Deployment running: ${isRunning}`);
+    log(`Deployment running: ${isRunning}`);
   }
-
-  console.log(`Deployment ${deployment.name} completed.`);
+  return res;
 }
 
+async function destroy_deployment(deployment: Types.Deployment) {
+  log(`Destroying the deployment ${deployment.name}.`)
+  const res = await komodo.execute("DestroyDeployment", {deployment: deployment.name});
+  return res
+}
 
 for (const server of servers) {
-  console.log(`Deploying ${deployment_name} to: ${server.name}`);
+  log(`Deploying ${deployment_name} to: ${server.name}`);
   await set_deployment_server(deployment, server);
   await execute_and_wait(deployment);
   var deploymentLogResponse = await komodo.read("GetDeploymentLog", {
@@ -106,13 +117,10 @@ for (const server of servers) {
     tail: 1000,
     timestamps: true,
   });
-  console.log(deploymentLogResponse.stdout, deploymentLogResponse.stderr);
+  log(deploymentLogResponse.stdout, deploymentLogResponse.stderr);
 }
 
-console.log(`Done! Destroying the deployment.`)
-async function destroy_deployment(deployment: Types.Deployment) {
-  const res = await komodo.execute("DestroyDeployment", {deployment: deployment.name});
-}
+  destroy_deployment(deployment);
 """
 
 ##
